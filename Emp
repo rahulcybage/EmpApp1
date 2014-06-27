@@ -1,0 +1,442 @@
+package db;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+import org.apache.log4j.Logger;
+
+public class Dbconnection {
+	
+	
+	
+	public Connection connec=null;
+	public static Dbconnection dbconnection;
+	
+	private Dbconnection()
+	{
+		 String driver="com.mysql.jdbc.Driver";
+		 String url="jdbc:mysql://localhost/";
+		 String dbname="practice";
+		 String username="root";
+		 String password="";
+		 try {
+			   
+			    Class.forName(driver);
+				connec=DriverManager.getConnection(url+dbname,username,password);
+				 
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch blocks
+				
+				e.printStackTrace();
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+			    e.printStackTrace();
+			}
+	}
+   public synchronized  static Dbconnection getConnection()
+   {
+	   if(dbconnection==null)
+	    {
+		  dbconnection= new Dbconnection();
+		  try {
+			dbconnection.connec.setAutoCommit(false);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		  
+	    }
+	
+   return dbconnection;
+   
+	 
+   }
+ 
+ 
+}
+......................
+package db;
+
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
+
+
+import com.cybage.pojo.Employee;
+
+
+
+public class Empoperation 
+{
+	
+	public static PreparedStatement ps=null;
+	public static ResultSet rs=null;
+	
+	
+	
+	public static List<Employee> check(String name,String pass,int id)
+	 {
+		 Dbconnection connection= Dbconnection.getConnection();
+		 List<Employee> ls = new ArrayList<Employee>();
+		 String query="Select empid,name,age,gender,qualification,designation  from Employee where empid=?  and password = ?";
+		 
+		 try 
+		 {
+			ps=connection.connec.prepareStatement(query);
+			ps.setInt(1, id);
+			//ps.setString(2, name);
+			ps.setString(2, pass);
+		    rs = ps.executeQuery();
+			while(rs.next())
+			{
+				Employee emp = new Employee();
+				emp.setEmpid(rs.getInt("empid"));
+				emp.setEname(rs.getString("name"));
+				emp.setEage(rs.getInt("age"));
+				emp.setEdesignation(rs.getString("designation"));
+				emp.setEqualification(rs.getString("qualification"));
+				emp.setEgender(rs.getString("gender"));
+				ls.add(emp);
+			}
+			
+			
+		 } 
+		 catch (SQLException e) 
+		 {
+			// TODO Auto-generated catch block
+			 e.printStackTrace();
+		 } 
+		
+	    finally
+		 {
+			
+			try {
+				    
+				    if(rs!=null)rs.close();
+					if(Dbconnection.dbconnection!=null)Dbconnection.dbconnection=null;
+				    if(ps!=null)ps.close();
+				System.out.println(connection);
+					
+				} 
+			catch (SQLException e) 
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				
+				}
+		}
+		return ls;
+	
+		
+	 } 
+	public static boolean checkpwd(String pwd,int empid)
+	{
+		Dbconnection connection= Dbconnection.getConnection();
+		String query="select count(*) from employee where empid=? and password=?";
+	    boolean check=false;
+		try
+		{
+			ps=connection.connec.prepareStatement(query);
+			ps.setInt(1, empid);
+			ps.setString(2,pwd);
+		    rs=ps.executeQuery();
+		    if(rs.next())
+		    {
+		    	check=true;
+		    	
+		    }
+		    else
+		    {
+		       check=false;
+		    	
+		    }
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}finally
+		  {
+			 try {
+				  if(Dbconnection.dbconnection!=null)Dbconnection.dbconnection=null;
+				  if(ps!=null)ps.close();
+				
+			     } catch (SQLException e) {
+			        e.printStackTrace();
+			         }
+		   }	
+		
+		   return check;
+		
+	}
+	public static boolean delete(int id)
+	{
+		Dbconnection connection= Dbconnection.getConnection();
+		 String query="Delete from employee where empid=?";
+		  boolean confirm = false;
+		int check=0;
+		try 
+		   {
+			    ps=connection.connec.prepareStatement(query);
+			    ps.setInt(1,id);
+			    check=ps.executeUpdate();
+			  confirm=(check>0) ? true: false;
+			  
+			} 
+		catch (SQLException e) 
+		    {
+				e.printStackTrace();
+			}
+		finally
+		  {
+			 try {
+				  if(Dbconnection.dbconnection!=null)Dbconnection.dbconnection=null;
+				  if(ps!=null)ps.close();
+				  
+			     } catch (SQLException e) {
+			        e.printStackTrace();
+			         }
+		   }	
+		return confirm;
+	}
+	
+	   public static String insert(Employee emp) 
+		 {
+		   System.out.println("Into the insertion method");
+	    	Dbconnection connection= Dbconnection.getConnection();
+	    	String query="Insert into Employee (Empid,name,age,gender,qualification,designation,password) values(?,?,?,?,?,?,?)" ;
+	  	    int check=0;
+	    	try {
+					ps = connection.connec.prepareStatement(query);
+					ps.setInt(1,emp.getEmpid());
+					ps.setString(2,emp.getEname());
+					ps.setInt(3,emp.getEage());
+					ps.setString(4,emp.getEgender());
+					ps.setString(5,emp.getEqualification());
+					ps.setString(6,emp.getEdesignation());
+					ps.setString(7, emp.getNewpassword());
+					check = ps.executeUpdate();
+					if(check>0)
+					{
+						connection.connec.commit();
+						return "ok";
+					}
+					else
+					{
+						connection.connec.rollback();
+						return "Error";
+					}
+					
+				}
+	    	 catch(Exception e)
+				{
+	    		 try {
+					connection.connec.rollback();
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+					return "Error Occurs";
+				}
+					return "Employee id already exists";
+				}
+			 
+	    	finally
+	    		 {
+		
+			 		try {
+				
+			 			if(Dbconnection.dbconnection!=null)Dbconnection.dbconnection=null;
+			 		    if(ps!=null)ps.close();
+			 				 return (check > 0) ? "ok" : "Error";
+			 			} 
+			 		catch (SQLException e) 
+			 			{
+				// TODO Auto-generated catch block
+			 			 e.printStackTrace();
+			 			   
+			 			}
+	    		 }	 
+	  	  
+		 }
+				
+	public static Boolean update(Employee emp)
+	 {
+		Dbconnection connection= Dbconnection.getConnection();
+		 String query="Update Employee set name=?,age=?,gender=?,qualification =?, designation=?,password=? where empid=? and password=?" ;
+			try {
+				ps=connection.connec.prepareStatement(query);
+				ps.setString(1,emp.getEname());
+				ps.setInt(2, emp.getEage());
+				ps.setString(3, emp.getEgender());
+				ps.setString(4, emp.getEqualification());
+				ps.setString(5,emp.getEdesignation());
+				ps.setString(6, emp.getNewpassword());
+				ps.setInt(7,emp.getEmpid());
+				ps.setString(8, emp.getOldpassword());
+				int check=ps.executeUpdate();
+				return (check > 0) ? true : false;
+			 } catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return false;
+			  } 
+		   finally{
+				 try {
+					 if(Dbconnection.dbconnection!=null)Dbconnection.dbconnection=null;
+					if(ps!=null)ps.close();
+				    } catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				   }
+			      }	 
+			
+		}
+ 
+
+}
+/.....................................
+package db;
+
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import com.cybage.pojo.Department;
+import com.mysql.jdbc.exceptions.MySQLIntegrityConstraintViolationException;
+
+public class Depoperation 
+{
+	public static PreparedStatement ps=null;
+	public static ResultSet rs=null;
+	
+	public static String insert(Department dep)
+	{
+		int check=0;
+		String result="Error";
+		Dbconnection connection = Dbconnection.getConnection();
+		String query="Insert into department (depid,depname,location) values(?,?,?)";
+		try
+		{
+			ps=connection.connec.prepareStatement(query);
+			ps.setInt(1, dep.getDepid());
+			ps.setString(2,dep.getDeptname());
+			ps.setString(3,dep.getLocation());
+			check=ps.executeUpdate();
+			if(check>0)
+			{
+				connection.connec.commit();
+				result =(check>0)? "ok":"Error";
+			}
+			else
+			{
+				connection.connec.rollback();
+			}
+			
+		}
+		catch(MySQLIntegrityConstraintViolationException e)
+			{
+			    try {
+					connection.connec.rollback();
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+				
+					return "Error Occurs";
+					 
+				}
+				return "Department id already exists";
+			}
+		catch (SQLException e) 
+		 	{
+			
+		 		e.printStackTrace();
+		 		return "Database Error";
+		 		
+		 	 }
+		finally
+		{
+			try {
+				
+	 			if(Dbconnection.dbconnection!=null)Dbconnection.dbconnection=null;
+	 		    if(ps!=null)ps.close();
+	 				 return (check > 0) ? "ok" : "Error";
+	 			} 
+	 		catch (SQLException e) 
+	 			{
+		// TODO Auto-generated catch block
+	 			 e.printStackTrace();
+	 			   
+	 			}
+		}
+		
+	
+		return result;
+	}
+	public static String update(Department dep)
+	{
+		int check=0;
+		String result="Error";
+		Dbconnection connection = Dbconnection.getConnection();
+		String query="update into department set depid=?,depname=?,location=? where depid=?";
+		try
+		{
+			ps=connection.connec.prepareStatement(query);
+			ps.setInt(1, dep.getDepid());
+			ps.setString(2, dep.getDeptname());
+			ps.setString(3, dep.getLocation());
+			check=ps.executeUpdate();
+			if(check>0)
+			{
+				connection.connec.commit();
+				result =(check>0)? "ok":"Error";
+			}
+			else
+			{
+				connection.connec.rollback();
+				return "Error";
+			}
+			
+		}
+		catch(MySQLIntegrityConstraintViolationException e)
+		{
+		    try
+		    {
+				 connection.connec.rollback();
+			}
+		    catch (SQLException e1) 
+		    {
+					// TODO Auto-generated catch block
+				e1.printStackTrace();
+				return "Error Occurs";
+			}
+				return "Department id already exists";
+		}
+		catch (SQLException e) 
+		 {
+			
+		 		e.printStackTrace();
+		 		return "Database Error";
+		 		
+		 }
+		finally
+		 {
+			try {
+				
+	 			if(Dbconnection.dbconnection!=null)Dbconnection.dbconnection=null;
+	 		    if(ps!=null)ps.close();
+	 				 return (check > 0) ? "ok" : "Error";
+	 			} 
+	 		catch (SQLException e) 
+	 			{
+		// TODO Auto-generated catch block
+	 			 e.printStackTrace();
+	 			   
+	 			}
+		}
+		return result;
+	}
+}
+
+
